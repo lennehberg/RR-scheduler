@@ -2,12 +2,11 @@
 // Created by ubuntu on 6/10/24.
 //
 
-#ifndef _SCHEDUELER_H_
-#define _SCHEDUELER_H_
+#ifndef SCHEDUELER_H_
+#define SCHEDUELER_H_
 
 
 #include "thread_utils.h"
-#include <queue>
 
 
 
@@ -17,7 +16,8 @@ class Schedueler
   std::queue<std::shared_ptr<thread_t>> r_qu_;
   std::vector<std::shared_ptr<thread_t>> blocked_;
   // itimerval v_timer_;
-  std::shared_ptr<thread_t> cur_thread;
+  std::shared_ptr<thread_t> cur_thread_;
+  std::shared_ptr<thread_t> m_thread_;
 
 //  void setup_timer();
 //
@@ -30,8 +30,13 @@ class Schedueler
   }
 
 
+ void set_main_thread(thread_t& m_thread){ m_thread_ = std::make_shared<thread_t>(m_thread); }
+
   /**
-   * @brief adds a thread's id to the end of the ready queue
+   * @brief adds a thread's id to the end of the ready queue,
+   * if the currently running thread is main thread (tid 0), then
+   * the current thread will be changed to thread and the queue will remain
+   * empty
    * @param tid
    * @return 0 on success, -1 on failure
    */
@@ -50,7 +55,7 @@ class Schedueler
    * @param tid
    * @return
    */
-  int block_thread(tid_t tid);
+  void block_thread(tid_t tid);
 };
 
-#endif //_SCHEDUELER_H_
+#endif //SCHEDUELER_H_

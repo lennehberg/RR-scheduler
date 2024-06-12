@@ -3,14 +3,14 @@
  * Hebrew University OS course.
  * Author: OS, os@cs.huji.ac.il
  */
-#ifndef _UTHREADS_H
-#define _UTHREADS_H
+#ifndef UTHREADS_H
+#define UTHREADS_H
 
 
 
+
+#include "Schedueler.h"
 #include "thread_utils.h"
-
-
 /* external interface */
 /**
  * @brief initializes the thread library.

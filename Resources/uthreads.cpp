@@ -3,16 +3,14 @@
 //
 
 #include "uthreads.h"
-#include "Schedueler.h"
+#include <iostream>
 
 /* A translation is required when using an address of a variable.
    Use this as a black box in your code. */
 
 
 /// GLOBALS ///
-tid_t min_tid = -1;
-tid_t max_tid = 1;
-tid_t cur_tid = 0;
+int avail_tids_[MAX_THREAD_NUM] = {0};
 int quantum = 0;
 Schedueler sched_;
 itimerval v_timer;
@@ -30,7 +28,7 @@ void timer_handler(int signum)
   // time has run out for the thread, reset its timer and  add it to the end
   // of the ready queue, and run the next thread
   std::shared_ptr<thread_t> cur = sched_.get_cur_running_thread();
-  cur->time_slice = v_timer;
+  cur->time_slice_ = v_timer;
   sched_.ready_thread (*cur);
   sched_.run_next_thread();
 }
@@ -53,6 +51,7 @@ void timer_handler(int signum)
 */
 int uthread_init(int quantum_usecs)
 {
+  // TODO SIGNAL MASKING !!!
   // check if quantum_usecs is a positive integer
   if (quantum_usecs > 0)
   {
@@ -72,8 +71,11 @@ int uthread_init(int quantum_usecs)
 	}
 
 	// initialize the main thread
-	thread_t main_t = {0};
-	sigsetjmp(main_t.env, 1);
+	thread_t main_t;
+  	sched_.set_main_thread(main_t);
+  	sched_.ready_thread(main_t);
+  	avail_tids_[0] = 1;
+	sigsetjmp(main_t.env_, 1);
 
 	// init schedueler
 	sched_.ready_thread (main_t);
@@ -84,4 +86,40 @@ int uthread_init(int quantum_usecs)
   }
 
   return -1;
+}
+
+/**
+ * @brief get the minimal available tid
+ * @return minimal available tid, -1 if no availabe tids (more than MAX_THREADS are currently running
+ */
+tid_t get_min_tid()
+{
+	// iterate over avail tids and get the minimal one
+	for (tid_t id = 0; id < MAX_THREAD_NUM; ++id)
+	{
+		if (!avail_tids_[id])
+		{
+			return id;
+		}
+	}
+	return -1;
+}
+
+
+
+int uthread_spawn(thread_entry_point entry_point)
+{
+	// get a new minimal tid, if tid == -1 then now more avaialable room for new threads
+	tid_t tid = get_min_tid();
+	if (tid > -1)
+	{
+		thread_t new_thread(tid, v_timer, entry_point);
+		// add thread to scheduler queue
+		std::cout << "putting thread in queue..." << std::endl;
+		sched_.ready_thread(new_thread);
+		std::cout << "SUCCESS" << std::endl;
+		return 0;
+	}
+
+	return -1;
 }

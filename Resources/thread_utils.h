@@ -2,13 +2,8 @@
 // Created by ubuntu on 6/11/24.
 //
 
-#ifndef _THREAD_UTILS_H_
-#define _THREAD_UTILS_H_
-
-#define MAX_THREAD_NUM 100 /* maximal number of threads */
-#define STACK_SIZE 4096 /* stack size per thread (in bytes) */
-
-#define INFINITE_TIME (-1)
+#ifndef UUTILS_H_
+#define UUTILS_H_
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -19,46 +14,12 @@
 #include <memory>
 #include <unistd.h>
 #include <signal.h>
+#include "arch_utils.h"
 
+#define MAX_THREAD_NUM 100 /* maximal number of threads */
+#define STACK_SIZE 4096 /* stack size per thread (in bytes) */
 
-typedef unsigned int address_t;
-
-#ifdef __x86_64__
-/* code for 64 bit Intel arch */
-
-typedef unsigned long address_t;
-#define JB_SP 6
-#define JB_PC 7
-
-/* A translation is required when using an address of a variable.
-   Use this as a black box in your code. */
-address_t translate_address(address_t addr)
-{
-    address_t ret;
-    asm volatile("xor    %%fs:0x30,%0\n"
-        "rol    $0x11,%0\n"
-                 : "=g" (ret)
-                 : "0" (addr));
-    return ret;
-}
-
-#else
-/* code for 32 bit Intel arch */
-
-
-#define JB_SP 4
-#define JB_PC 5
-address_t translate_address(address_t addr)
-{
-  address_t ret;
-  asm volatile("xor    %%gs:0x18,%0\n"
-			   "rol    $0x9,%0\n"
-	  : "=g" (ret)
-	  : "0" (addr));
-  return ret;
-}
-#endif
-
+#define INFINITE_TIME (-1)
 
 typedef void (*thread_entry_point)(void);
 
@@ -71,14 +32,56 @@ typedef enum state_t
 }state_t;
 
 typedef struct thread_t{
-	tid_t tid;
-	state_t state;
-	itimerval time_slice;
-	thread_entry_point entry_point;
-	sigjmp_buf env;
-	address_t sp;
-	address_t pc;
+	tid_t tid_;
+	state_t state_;
+	itimerval time_slice_;
+	thread_entry_point entry_point_;
+	sigjmp_buf env_;
+	char* stack_;
+	address_t sp_;
+	address_t pc_;
+
+	/**
+	 * @brief Constructor for main thread
+	 */
+	thread_t()
+	{
+		tid_ = 0;
+		state_ = READY;
+		time_slice_ = {0};
+		entry_point_ = nullptr;
+		// sigsetjmp(env_, 1);
+		stack_ = nullptr;
+		sp_ = 0;
+		pc_ = 0;
+	}
+
+	/**
+	 * @brief Default constructor
+	 * @param tid
+	 * @param time_slice
+	 * @param entry_point
+	 */
+	thread_t(tid_t tid,itimerval& time_slice, thread_entry_point entry_point= nullptr):
+	tid_(tid), state_(BLOCKED), time_slice_(time_slice), entry_point_(entry_point)
+	{
+		stack_ = new char[STACK_SIZE];
+		// set the stack pointer to the bottom of the stack and program counter to the entry point of the thread
+		sp_ = (address_t) stack_ + STACK_SIZE - sizeof(address_t);
+		pc_ = (address_t) entry_point;
+		sigsetjmp(env_, 1);
+		env_->__jmpbuf[JB_SP] = translate_address(sp_);
+		env_->__jmpbuf[JB_PC] = translate_address(pc_);
+		sigemptyset(&env_->__saved_mask);
+	}
+
+	~thread_t()
+	{
+		delete[] stack_;
+	}
+
+
 }thread_t;
 
 
-#endif //_THREAD_UTILS_H_
+#endif //UUTILS_H_

@@ -9,12 +9,13 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <setjmp.h>
-#include <stdbool.h>
 #include <queue>
+#include <deque>
 #include <memory>
 #include <unistd.h>
 #include <signal.h>
 #include "arch_utils.h"
+#include <map>
 
 #define MAX_THREAD_NUM 100 /* maximal number of threads */
 #define STACK_SIZE 4096 /* stack size per thread (in bytes) */
@@ -69,16 +70,20 @@ typedef struct thread_t{
 		// set the stack pointer to the bottom of the stack and program counter to the entry point of the thread
 		sp_ = (address_t) stack_ + STACK_SIZE - sizeof(address_t);
 		pc_ = (address_t) entry_point;
-		sigsetjmp(env_, 1);
+		if (sigsetjmp(env_, 1) != 0)
+		{
+			return;
+		}
 		env_->__jmpbuf[JB_SP] = translate_address(sp_);
 		env_->__jmpbuf[JB_PC] = translate_address(pc_);
 		sigemptyset(&env_->__saved_mask);
 	}
 
-	~thread_t()
-	{
-		delete[] stack_;
-	}
+	// ~thread_t()
+	// {
+	// 	if (stack_ && tid_ != 0)
+	// 		delete[] stack_;
+	// }
 
 
 }thread_t;

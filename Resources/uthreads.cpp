@@ -118,12 +118,84 @@ int uthread_spawn(thread_entry_point entry_point)
         min_tid = get_min_tid();
         if (min_tid > -1)
         {
+            ret = 0;
             // init a new thread with that tid
             used_tids_[min_tid] = 1;
             sched_.init_thread(min_tid, v_timer_, entry_point);
-            ret = 0;
         }
+        // TODO if min_tid is -1, then there is no more room for threads
     }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
     return ret;
 }
+
+
+int uthread_terminate(int tid)
+{
+    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    int ret = -1;
+    // TODO if tid == 0, then terminate the whole program and exit(0)
+    if (tid == 0)
+    {
+        ret = 0;
+    }
+   // else, remove the thread from the schedueler
+    else
+    {
+        if (used_tids_[tid])
+        {
+            used_tids_[tid] = 0;
+            sched_.remove_thread(tid);
+            ret = 0;
+        }
+    }
+    // TODO negative tid error, no existing tid error
+
+    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    return ret;
+}
+
+
+int uthread_block(int tid)
+{
+    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    // TODO if id is 0, raise en error
+    int ret = -1;
+    if (tid != 0)
+    {
+        // if the thread is blocking itself (the currently runnning
+        // theead, save its state
+        if (tid == sched_.get_cur_thread()->tid_)
+        {
+            if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
+            {
+                return 0;
+            }
+        }
+        sched_.block_thread(tid);
+        ret = 0;
+    }
+    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    // TODO negative tid error, no existing tid error
+    return ret;
+}
+
+int uthread_resume(int tid)
+{
+    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    int ret = -1;
+    // TODO if id not in use, raise error
+    if (used_tids_[tid])
+    {
+        sched_.resume_thread(tid);
+        ret = 0;
+    }
+    return ret;
+    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+}
+
+int uthread_sleep(int num_quantums)
+{
+
+}
+

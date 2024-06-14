@@ -29,7 +29,8 @@ typedef enum state_t
 {
 	READY,
 	RUNNING,
-	BLOCKED
+	BLOCKED,
+	TERMINATED
 }state_t;
 
 typedef struct thread_t{
@@ -41,6 +42,7 @@ typedef struct thread_t{
 	char* stack_;
 	address_t sp_;
 	address_t pc_;
+	int asleep_for_;
 
 	/**
 	 * @brief Constructor for main thread
@@ -55,6 +57,7 @@ typedef struct thread_t{
 		stack_ = nullptr;
 		sp_ = 0;
 		pc_ = 0;
+		asleep_for_ = -1;
 	}
 
 	/**
@@ -77,13 +80,14 @@ typedef struct thread_t{
 		env_->__jmpbuf[JB_SP] = translate_address(sp_);
 		env_->__jmpbuf[JB_PC] = translate_address(pc_);
 		sigemptyset(&env_->__saved_mask);
+		asleep_for_ = -1;
 	}
 
-	// ~thread_t()
-	// {
-	// 	if (stack_ && tid_ != 0)
-	// 		delete[] stack_;
-	// }
+	~thread_t()
+	{
+		if (stack_ && tid_ != 0)
+			delete[] stack_;
+	}
 
 
 }thread_t;

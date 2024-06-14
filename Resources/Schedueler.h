@@ -16,7 +16,9 @@ class Schedueler
     std::deque<thread_t *> rdy_qu_;
     std::map<tid_t, thread_t *> active_threads_;
     std::map<tid_t, thread_t *> blocked_;
-    thread_t *cur_run_;
+    std::vector<thread_t *> sleeping_;
+    thread_t *cur_run_ = nullptr;
+    thread_t *m_thread_ = nullptr;
 
     /**
      * puts the thread at the end of the queue, and puts the main
@@ -29,6 +31,11 @@ class Schedueler
      * Sets the thread in the front of the queue to running
      */
     void run_next_thread();
+
+    /**
+     * wake threads after their asleep period has ended
+     */
+    void wake_threads();
 
 public:
  /**
@@ -49,6 +56,37 @@ public:
   * @param thread thread to add to the end of the queue
   */
  void schedule(thread_t *thread);
+
+ /**
+  * removes thread from the active threads map
+  * delete its instance and makes the schedueler skip
+  * the thread and remove from queue when the time comes
+  * @param tid
+  * @return
+  */
+  void remove_thread(tid_t tid);
+
+    /**
+     * blocks thread with tid, if the blocked thread is currently running,
+     * stops, save its time_slice_ using getitimer, and put thread in blocked
+     * list
+     * if the thread is not currently running, just put it in the blocked list
+     * @param tid
+     */
+    void block_thread(tid_t tid);
+
+    /**
+     * resumes a blocked thread with id tid, if the thread is running or ready,
+     * no effect on the thread
+     * @param tid
+     */
+    void resume_thread(tid_t tid);
+
+    /**
+     * puts the currently running thread to sleep for num_quantum cycles
+     * @param num_quantums
+     */
+    void sleep_running_thread(int num_quantums);
 };
 
 #endif //SCHEDUELER_H_

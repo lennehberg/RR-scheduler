@@ -6,6 +6,7 @@
 /// GLOBALS ///
 int used_tids_[MAX_THREAD_NUM] = {0};
 int quantum = 0;
+int total_quantums = 0;
 Schedueler sched_;
 itimerval v_timer_;
 itimerval main_timer = {0};
@@ -16,18 +17,27 @@ sigset_t sigset_;
  */
 void timer_handler(int signum)
 {
-    // fetch the current running thread from the schedueler and
-    // reset its timer, set it's state to blocked (purely for semantic purposes)
-    thread_t *cur = sched_.get_cur_thread();
-    cur->time_slice_ = v_timer_;
-    cur->state_ = BLOCKED;
-
-    // save the state of the thread and schedule the schedueler
-    if (sigsetjmp(cur->env_, 1) != 0)
+    ++total_quantums;
+    if (uthread_get_tid() != 0)
     {
-        return;
+        // fetch the current running thread from the schedueler and
+        // reset its timer, set it's state to blocked (purely for semantic purposes)
+        thread_t *cur = sched_.get_cur_thread();
+        cur->time_slice_ = v_timer_;
+        cur->state_ = BLOCKED;
+
+        // save the state of the thread and schedule the schedueler
+        if (sigsetjmp(cur->env_, 1) != 0)
+        {
+            return;
+        }
+
+        sched_.schedule(cur);
     }
-    sched_.schedule(cur);
+    else
+    {
+        sched_.wake_threads();
+    }
 }
 
 /*
@@ -38,7 +48,7 @@ void setup_v_timer()
     v_timer_.it_value.tv_sec = 0;
     v_timer_.it_value.tv_usec = quantum;
     v_timer_.it_interval.tv_sec = 0;
-    v_timer_.it_interval.tv_usec = 0;
+    v_timer_.it_interval.tv_usec = quantum;
 
     struct sigaction sa = {nullptr};
     sa.sa_handler = &timer_handler;
@@ -83,6 +93,7 @@ int uthread_init(int quantum_usecs)
             return 0;
         }
         used_tids_[0] = 1;
+        total_quantums = 1;
         ret = 0;
     }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
@@ -164,7 +175,8 @@ int uthread_block(int tid)
     if (tid != 0)
     {
         // if the thread is blocking itself (the currently runnning
-        // theead, save its state
+        // theead, save its state (if the thread is not currently running,
+        // then it's state was save previously, either here or in the timer handler)
         if (tid == sched_.get_cur_thread()->tid_)
         {
             if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
@@ -190,12 +202,44 @@ int uthread_resume(int tid)
         sched_.resume_thread(tid);
         ret = 0;
     }
-    return ret;
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    return ret;
+
 }
 
 int uthread_sleep(int num_quantums)
 {
-
+    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    int ret = -1;
+    // TODO negative num_quantums error
+    if (num_quantums > 0)
+    {
+        // TODO putting main to sleep / main thread is the only thread not sleeping
+        // TODO sets the timer to intervals of quantums
+        // set the jump point for the cur thread
+        if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
+        {
+            return 0;
+        }
+        sched_.sleep_running_thread(num_quantums);
+        ret = 0;
+    }
+    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    return ret;
 }
 
+int uthread_get_tid()
+{
+    return sched_.get_cur_thread()->tid_;
+}
+
+int uthread_get_total_quantums()
+{
+    return total_quantums;
+}
+
+int uthread_get_quantums(int tid)
+{
+    // TODO non existant tid error
+    return sched_.get_total_quantums(tid);
+}

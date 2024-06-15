@@ -222,3 +222,8 @@ int test_resuming()
 	}
 	return ret;
 }
+
+int test_sleeping()
+{
+
+}

@@ -33,6 +33,7 @@ void Schedueler::run_next_thread()
         // if the queue is empty after the pop, insert the main thread
         if (rdy_qu_.empty())
         {
+            m_thread_->state_ = READY;
             rdy_qu_.push_back(m_thread_);
         }
     }
@@ -42,6 +43,7 @@ void Schedueler::run_next_thread()
     }
     // set the cur running state to running and jump
     cur_run_->state_ = RUNNING;
+    ++cur_run_->total_quantums;
     itimerval debug_timer;
     setitimer(ITIMER_VIRTUAL, &cur_run_->time_slice_, nullptr);
     getitimer(ITIMER_VIRTUAL, &debug_timer);
@@ -70,6 +72,7 @@ void Schedueler::init_thread(tid_t tid, itimerval& time_slice, thread_entry_poin
 
 void Schedueler::schedule(thread_t *thread)
 {
+    wake_threads();
     ready_thread(thread);
     run_next_thread();
 }
@@ -152,11 +155,15 @@ void Schedueler::wake_threads()
         {
             --(*thread_iter)->asleep_for_;
             sleeping_.erase(thread_iter);
-            ready_thread((*thread_iter));
+            ready_thread(*thread_iter);
         }
     }
 }
 
+int Schedueler::get_total_quantums(tid_t tid)
+{
+    return active_threads_[tid]->total_quantums;
+}
 
 
 

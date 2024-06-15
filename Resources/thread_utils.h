@@ -43,6 +43,7 @@ typedef struct thread_t{
 	address_t sp_;
 	address_t pc_;
 	int asleep_for_;
+	int total_quantums;
 
 	/**
 	 * @brief Constructor for main thread
@@ -58,6 +59,7 @@ typedef struct thread_t{
 		sp_ = 0;
 		pc_ = 0;
 		asleep_for_ = -1;
+		total_quantums = 0;
 	}
 
 	/**
@@ -81,6 +83,7 @@ typedef struct thread_t{
 		env_->__jmpbuf[JB_PC] = translate_address(pc_);
 		sigemptyset(&env_->__saved_mask);
 		asleep_for_ = -1;
+		total_quantums = 0;
 	}
 
 	~thread_t()

@@ -32,10 +32,8 @@ class Schedueler
      */
     void run_next_thread();
 
-    /**
-     * wake threads after their asleep period has ended
-     */
-    void wake_threads();
+
+
 
 public:
  /**
@@ -83,10 +81,25 @@ public:
     void resume_thread(tid_t tid);
 
     /**
-     * puts the currently running thread to sleep for num_quantum cycles
+     * puts the currently running thread to sleep for num_quantum cycles,
+     * and runs the next thread
      * @param num_quantums
      */
     void sleep_running_thread(int num_quantums);
+
+    /**
+    * reutrns the total quantums a thread with the
+    * specified tid has run
+    * @param tid
+    * @return
+    */
+    int get_total_quantums(tid_t tid);
+
+    /**
+    * wake threads after their asleep period has ended, and puts
+    * relevant threads at the end of the queue
+    */
+    void wake_threads();
 };
 
 #endif //SCHEDUELER_H_

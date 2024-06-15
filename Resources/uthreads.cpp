@@ -31,13 +31,19 @@ void timer_handler(int signum)
         {
             return;
         }
-
-        sched_.schedule(cur);
     }
     else
     {
-        sched_.wake_threads();
+        thread_t *cur = sched_.get_cur_thread();
+        cur->time_slice_ = main_timer;
+        if (sigsetjmp(cur->env_, 1) != 0)
+        {
+            return;
+        }
     }
+
+    sched_.schedule();
+
 }
 
 /*
@@ -49,6 +55,9 @@ void setup_v_timer()
     v_timer_.it_value.tv_usec = quantum;
     v_timer_.it_interval.tv_sec = 0;
     v_timer_.it_interval.tv_usec = quantum;
+
+    main_timer.it_interval.tv_usec = quantum;
+    main_timer.it_value.tv_usec = quantum;
 
     struct sigaction sa = {nullptr};
     sa.sa_handler = &timer_handler;
@@ -88,10 +97,12 @@ int uthread_init(int quantum_usecs)
         setup_v_timer();
         // init main thread
         sched_.init_thread(0, main_timer, nullptr);
+        sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
         if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
         {
             return 0;
         }
+        sigprocmask(SIG_BLOCK, &sigset_, nullptr);
         used_tids_[0] = 1;
         total_quantums = 1;
         ret = 0;
@@ -122,10 +133,10 @@ int uthread_spawn(thread_entry_point entry_point)
     tid_t min_tid;
     int ret = -1;
     sigprocmask(SIG_SETMASK, &sigset_, nullptr);
-    // check if entry point valid
+    // TODO ERROR check if entry point valid
     if (entry_point)
     {
-        // get a minimal avail tid
+        // TODO ERROR get a minimal avail tid
         min_tid = get_min_tid();
         if (min_tid > -1)
         {
@@ -133,10 +144,15 @@ int uthread_spawn(thread_entry_point entry_point)
             // init a new thread with that tid
             used_tids_[min_tid] = 1;
             sched_.init_thread(min_tid, v_timer_, entry_point);
+
         }
         // TODO if min_tid is -1, then there is no more room for threads
     }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    if (ret == 0 && uthread_get_tid() == 0)
+    {
+        sched_.schedule();
+    }
     return ret;
 }
 
@@ -200,6 +216,10 @@ int uthread_resume(int tid)
     if (used_tids_[tid])
     {
         sched_.resume_thread(tid);
+        if (uthread_get_tid() == 0)
+        {
+            sched_.schedule();
+        }
         ret = 0;
     }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);

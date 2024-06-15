@@ -4,6 +4,7 @@
 
 #include "Schedueler.h"
 
+#include <thread>
 #include <utility>
 
 /**
@@ -16,10 +17,10 @@ void Schedueler::ready_thread(thread_t *n_thread)
     n_thread->state_ = READY;
     rdy_qu_.push_back(n_thread);
     // if the current thread is the main thread, run the next thread
-    if (cur_run_->tid_ == 0) // cur_run is initialize to main thread when init is called
-    {
-        run_next_thread();
-    }
+    // if (cur_run_->tid_ == 0) // cur_run is initialize to main thread when init is called
+    // {
+    //     run_next_thread();
+    // }
 }
 
 void Schedueler::run_next_thread()
@@ -31,11 +32,11 @@ void Schedueler::run_next_thread()
         rdy_qu_.pop_front();
 
         // if the queue is empty after the pop, insert the main thread
-        if (rdy_qu_.empty())
-        {
-            m_thread_->state_ = READY;
-            rdy_qu_.push_back(m_thread_);
-        }
+        // if (rdy_qu_.empty())
+        // {
+        //     m_thread_->state_ = READY;
+        //     rdy_qu_.push_back(m_thread_);
+        // }
     }
     else
     {
@@ -50,7 +51,7 @@ void Schedueler::run_next_thread()
     siglongjmp(cur_run_->env_, 1);
 }
 
-void Schedueler::init_thread(tid_t tid, itimerval& time_slice, thread_entry_point entry_point)
+void Schedueler::init_thread(tid_t tid, itimerval time_slice, thread_entry_point entry_point)
 {
     thread_t *n_thread;
     // if the tid == 0, then init a main thread and set it to running
@@ -58,6 +59,7 @@ void Schedueler::init_thread(tid_t tid, itimerval& time_slice, thread_entry_poin
     {
         n_thread = new thread_t;
         n_thread->state_ = RUNNING;
+        n_thread->time_slice_ = time_slice;
         cur_run_ = n_thread;
         m_thread_ = n_thread;
     }
@@ -70,10 +72,12 @@ void Schedueler::init_thread(tid_t tid, itimerval& time_slice, thread_entry_poin
     active_threads_.insert({n_thread->tid_,n_thread});
 }
 
-void Schedueler::schedule(thread_t *thread)
+void Schedueler::schedule()
 {
+    // wake sleeping threads that need to wake up,
+    // put the cur_run thread at the end of the queue
     wake_threads();
-    ready_thread(thread);
+    ready_thread(cur_run_);
     run_next_thread();
 }
 
@@ -148,14 +152,19 @@ void Schedueler::wake_threads()
 {
     for (auto thread_iter = sleeping_.begin(); thread_iter != sleeping_.end(); ++thread_iter)
     {
+        if (sleeping_.empty())
+        {
+            break;
+        }
         // update threads asleep for time, if any reached 0
         // wake up the thread
-        --(*thread_iter)->asleep_for_;
+        thread_t* to_wake = *thread_iter;
+        --to_wake->asleep_for_;
         if ((*thread_iter)->asleep_for_ <= 0)
         {
-            --(*thread_iter)->asleep_for_;
+            --to_wake->asleep_for_;
             sleeping_.erase(thread_iter);
-            ready_thread(*thread_iter);
+            ready_thread(to_wake);
         }
     }
 }

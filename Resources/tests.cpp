@@ -35,6 +35,8 @@ int test_blocking();
  */
 int test_resuming();
 
+int test_sleeping();
+
 int main()
 {
 	// test_init();
@@ -42,6 +44,7 @@ int main()
 	// test_terminate();
 	// test_blocking();
 	test_resuming();
+	// test_sleeping();
 }
 
 int test_init()
@@ -213,6 +216,8 @@ int test_resuming()
 		{
 			ret = -1;
 		}
+		itimerval debug_t;
+		getitimer(ITIMER_VIRTUAL, &debug_t);
 		std::cout << "Resuming thread 2..." << std::endl;
 		if (uthread_resume(2) == -1)
 		{
@@ -223,7 +228,69 @@ int test_resuming()
 	return ret;
 }
 
+bool woke_up = false;
+void sleeping_thread()
+{
+	int i = 0;
+	while (true)
+	{
+		++i;
+		if (i == 1)
+		{
+			std::cout << "Going to sleep at ... " << uthread_get_total_quantums() << " quantums of the process" << std::endl;
+			uthread_sleep(3);
+			std::cout << "I resumed after... " << uthread_get_total_quantums() \
+						<< " quantums of the process" << std::endl;
+			woke_up = true;
+			uthread_terminate(uthread_get_tid());
+		}
+	}
+}
+
+void father_thread()
+{
+	int i = 0;
+	while(true)
+	{
+		++i;
+		if (i == 1)
+		{
+			std::cout << "Spawning a sleeping thread... " << std::endl;
+			uthread_spawn(&sleeping_thread);
+		}
+		if (i == 0)
+		{
+			std::cout << "father thread has been running for... " << uthread_get_quantums(uthread_get_tid()) << std::endl;;
+			std::cout << "terminating... " << std::endl;
+			uthread_terminate(uthread_get_tid());
+		}
+
+	}
+}
+
 int test_sleeping()
 {
+	int ret = -1;
+	if (uthread_init(100000) == 0)
+	{
 
+		int i = 0;
+		while(!woke_up)
+		{
+			itimerval debug_timer;
+			getitimer(ITIMER_VIRTUAL, &debug_timer);
+			if (i == 0)
+			{
+
+				{
+					std::cout << "Spawning the father thread... " << std::endl;
+					uthread_spawn(&father_thread);
+					ret = 0;
+					++i;
+				}
+			}
+
+		}
+	}
+	return ret;
 }

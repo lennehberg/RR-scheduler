@@ -41,7 +41,7 @@ public:
 * if tid = 0, then init a main thread and immediatly set it to running
 * @param tid id of new thread
 */
- void init_thread(tid_t tid, itimerval& time_slice, thread_entry_point entry_point= nullptr);
+ void init_thread(tid_t tid, itimerval time_slice, thread_entry_point entry_point= nullptr);
 
  /**
   *
@@ -53,7 +53,7 @@ public:
   * schedule the next thread in the queue to run
   * @param thread thread to add to the end of the queue
   */
- void schedule(thread_t *thread);
+ void schedule();
 
  /**
   * removes thread from the active threads map

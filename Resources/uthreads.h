@@ -11,6 +11,9 @@
 
 #include "Schedueler.h"
 #include "thread_utils.h"
+#include <iostream>
+#include <cerrno>
+
 /* external interface */
 /**
  * @brief initializes the thread library.

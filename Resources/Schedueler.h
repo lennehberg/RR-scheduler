@@ -100,6 +100,11 @@ public:
     * relevant threads at the end of the queue
     */
     void wake_threads();
+
+    /**
+     * terminates all the threads from the schedueler, other than the main thread
+     */
+    void terminate();
 };
 
 #endif //SCHEDUELER_H_

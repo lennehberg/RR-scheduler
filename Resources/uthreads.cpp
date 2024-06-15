@@ -3,6 +3,8 @@
 //
 #include "uthreads.h"
 
+#include <cstring>
+
 /// GLOBALS ///
 int used_tids_[MAX_THREAD_NUM] = {0};
 int quantum = 0;
@@ -11,6 +13,13 @@ Schedueler sched_;
 itimerval v_timer_;
 itimerval main_timer = {0};
 sigset_t sigset_;
+
+
+void error_handler(std::string msg)
+{
+    std::cerr << msg << std::endl;
+    exit(1);
+}
 
 /**
  * timer handler for timing threads
@@ -63,9 +72,11 @@ void setup_v_timer()
     sa.sa_handler = &timer_handler;
     if (sigaction (SIGVTALRM, &sa, nullptr) == -1)
     {
-        sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
-        // TODO sigaction error
-        return;
+        // sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+        // sigaction error
+        std::string err_msg = "system error: sigaction failed: ";
+        err_msg += strerror(errno);
+        error_handler(err_msg);
     }
 }
 
@@ -107,6 +118,10 @@ int uthread_init(int quantum_usecs)
         total_quantums = 1;
         ret = 0;
     }
+    else
+    {
+        error_handler("thread library error: quantum should be a positive integer! ");
+    }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
     return ret;
 }
@@ -133,10 +148,8 @@ int uthread_spawn(thread_entry_point entry_point)
     tid_t min_tid;
     int ret = -1;
     sigprocmask(SIG_SETMASK, &sigset_, nullptr);
-    // TODO ERROR check if entry point valid
     if (entry_point)
     {
-        // TODO ERROR get a minimal avail tid
         min_tid = get_min_tid();
         if (min_tid > -1)
         {
@@ -144,9 +157,11 @@ int uthread_spawn(thread_entry_point entry_point)
             // init a new thread with that tid
             used_tids_[min_tid] = 1;
             sched_.init_thread(min_tid, v_timer_, entry_point);
-
         }
-        // TODO if min_tid is -1, then there is no more room for threads
+    }
+    else
+    {
+        error_handler("thread library error: Thread entry point cannot be NULL!");
     }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
     if (ret == 0 && uthread_get_tid() == 0)
@@ -161,22 +176,27 @@ int uthread_terminate(int tid)
 {
     sigprocmask(SIG_SETMASK, &sigset_, nullptr);
     int ret = -1;
-    // TODO if tid == 0, then terminate the whole program and exit(0)
+    // if tid == 0, then terminate the whole program and exit(0)
     if (tid == 0)
     {
-        ret = 0;
+        sched_.terminate();
+        exit(0);
     }
    // else, remove the thread from the schedueler
+    else if (used_tids_[tid])
+    {
+        used_tids_[tid] = 0;
+        sched_.remove_thread(tid);
+        ret = 0;
+    }
+    // negative tid error, no existing tid error
     else
     {
-        if (used_tids_[tid])
-        {
-            used_tids_[tid] = 0;
-            sched_.remove_thread(tid);
-            ret = 0;
-        }
+        std::string erro_msg = "thread library error: trying to terminate a thread with id ";
+        erro_msg += std::to_string(tid);
+        erro_msg += " which doesn't exist!";
+        error_handler(erro_msg);
     }
-    // TODO negative tid error, no existing tid error
 
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
     return ret;
@@ -186,9 +206,15 @@ int uthread_terminate(int tid)
 int uthread_block(int tid)
 {
     sigprocmask(SIG_SETMASK, &sigset_, nullptr);
-    // TODO if id is 0, raise en error
+    // if id is 0, raise en error
     int ret = -1;
-    if (tid != 0)
+    if (tid == 0)
+    {
+        error_handler("thread library error: Blocking main thread is NOT allowed!");
+    }
+
+
+    else if (used_tids_[tid])
     {
         // if the thread is blocking itself (the currently runnning
         // theead, save its state (if the thread is not currently running,
@@ -203,8 +229,12 @@ int uthread_block(int tid)
         sched_.block_thread(tid);
         ret = 0;
     }
+    else  // negative tid error, no existing tid error
+    {
+        error_handler("thread library error: Thread id does not exist!");
+    }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
-    // TODO negative tid error, no existing tid error
+
     return ret;
 }
 
@@ -212,7 +242,11 @@ int uthread_resume(int tid)
 {
     sigprocmask(SIG_SETMASK, &sigset_, nullptr);
     int ret = -1;
-    // TODO if id not in use, raise error
+    // if id not in use, raise error
+    if (tid == 0 || !used_tids_[tid])
+    {
+        error_handler("thread library error: Invalid ID to resume!");
+    }
     if (used_tids_[tid])
     {
         sched_.resume_thread(tid);
@@ -231,10 +265,14 @@ int uthread_sleep(int num_quantums)
 {
     sigprocmask(SIG_SETMASK, &sigset_, nullptr);
     int ret = -1;
-    // TODO negative num_quantums error
+    if (uthread_get_tid() == 0)
+    {
+        error_handler("thread library error: Cannot put main to sleep!");
+    }
+    // negative num_quantums error
     if (num_quantums > 0)
     {
-        // TODO putting main to sleep / main thread is the only thread not sleeping
+        // TODO main thread is the only thread not sleeping
         // TODO sets the timer to intervals of quantums
         // set the jump point for the cur thread
         if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
@@ -243,6 +281,10 @@ int uthread_sleep(int num_quantums)
         }
         sched_.sleep_running_thread(num_quantums);
         ret = 0;
+    }
+    else
+    {
+        error_handler("thread library error: number of quantums must be a positive integer!");
     }
     sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
     return ret;
@@ -261,5 +303,10 @@ int uthread_get_total_quantums()
 int uthread_get_quantums(int tid)
 {
     // TODO non existant tid error
+    if (!used_tids_[tid])
+    {
+        error_handler("thread library error: Can't get quantums as no thread exists with that ID");
+    }
+
     return sched_.get_total_quantums(tid);
 }

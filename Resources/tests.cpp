@@ -37,14 +37,20 @@ int test_resuming();
 
 int test_sleeping();
 
+int test_sleeping_only_main_thread_left();
+
+int test_terminating_main();
+
 int main()
 {
 	// test_init();
 	// test_spawn();
-	// test_terminate();
+	test_terminate();
 	// test_blocking();
-	test_resuming();
+	// test_resuming();
 	// test_sleeping();
+	// test_sleeping_only_main_thread_left();
+	// test_terminating_main();
 }
 
 int test_init()
@@ -148,6 +154,7 @@ int test_terminate()
 		{
 			std:: cout << "Terminated successfully!" << std::endl;
 		}
+		uthread_terminate(0);
 	}
 	return ret;
 }
@@ -290,6 +297,64 @@ int test_sleeping()
 				}
 			}
 
+		}
+	}
+	return ret;
+}
+
+int test_sleeping_only_main_thread_left()
+{
+	int ret = -1;
+	if (uthread_init(100000) == 0)
+	{
+
+		int i = 0;
+		while(!woke_up)
+		{
+			itimerval debug_timer;
+			getitimer(ITIMER_VIRTUAL, &debug_timer);
+			if (i == 0)
+			{
+
+				{
+					std::cout << "Spawning the father thread... " << std::endl;
+					uthread_spawn(&sleeping_thread);
+					ret = 0;
+					++i;
+				}
+			}
+
+		}
+	}
+	return ret;
+}
+
+
+int test_terminating_main()
+{
+	int ret = -1;
+	if (uthread_init(100000) == 0)
+	{
+
+		int i = 0;
+		while(true)
+		{
+			itimerval debug_timer;
+			getitimer(ITIMER_VIRTUAL, &debug_timer);
+			if (i == 0)
+			{
+
+				{
+					std::cout << "Spawning the father thread... " << std::endl;
+					uthread_spawn(&father_thread);
+					ret = 0;
+					++i;
+				}
+			}
+			if (woke_up)
+			{
+				uthread_terminate(0);
+			}
 		}
 	}
 	return ret;

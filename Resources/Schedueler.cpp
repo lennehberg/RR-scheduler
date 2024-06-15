@@ -83,14 +83,61 @@ void Schedueler::schedule()
 
 void Schedueler::remove_thread(tid_t tid)
 {
+    bool run_next = false;
     // set the state of the thread to terminated and
     // erase the thread from the active map
-    active_threads_[tid]->state_ = TERMINATED;
-    delete active_threads_[tid];
+    if (active_threads_[tid]->state_ == READY || active_threads_[tid]->state_ == RUNNING)
+    {
+        active_threads_[tid]->state_ = TERMINATED;
+
+
+        // remove thread from the queue
+        for (auto q_iter = rdy_qu_.cbegin(); q_iter != rdy_qu_.cend(); ++q_iter)
+        {
+            if ((*q_iter)->tid_ == tid)
+            {
+                rdy_qu_.erase(q_iter);
+                break;
+            }
+        }
+
+        if (cur_run_->tid_ == tid)
+        {
+            run_next = true;
+        }
+        delete active_threads_[tid];
+        active_threads_.erase(tid);
+
+    }
+    else // state of thread is blocked, remove from blocked list / sleeping list
+    {
+        // find thread in sleeping list
+        bool in_sleeping = false;
+        thread_t *e_thread = nullptr;
+        for (auto thread_iter = sleeping_.begin(); thread_iter != sleeping_.end(); ++thread_iter)
+        {
+            if ((*thread_iter)->tid_ == tid)
+            {
+                e_thread = *thread_iter;
+                in_sleeping = true;
+                sleeping_.erase(thread_iter);
+                break;
+            }
+        }
+        if (!in_sleeping)
+        {
+            e_thread = blocked_[tid];
+            blocked_.erase(tid);
+        }
+
+        delete e_thread;
+
+    }
     active_threads_.erase(tid);
-    run_next_thread();
-    // TODO threasd is blocked and terminated
-    // TODO thread is not currently running
+    if (run_next)
+    {
+        run_next_thread();
+    }
 }
 
 void Schedueler::block_thread(tid_t tid)
@@ -174,6 +221,18 @@ int Schedueler::get_total_quantums(tid_t tid)
     return active_threads_[tid]->total_quantums;
 }
 
+void Schedueler::terminate()
+{
+    // remove threads from active threads, no need to worry about other lists
+    for (auto thread_p : active_threads_)
+    {
+        if (thread_p.first == 0)
+        {
+            continue;
+        }
+        delete thread_p.second;
+    }
+}
 
 
 

@@ -20,9 +20,24 @@ As a whole, whilst implementing I was debating with myself how much I should "re
 ANSWERS:
 
 Q1:
-Here are answers to theoreical questions
-if there were such questions in the exercise.
+- sigsetjmp: provided a jmp_buf variable, stores the current state of the stack, stack pointer and program counter to the buffer, to later be used by a siglongjmp.
+- siglongjmp: provided a jmp_buf and a val variables, performs a non-local jump by setting the stack, stack pointer and program counter to the ones saved by sigsetjmp, acting as if returning from sigsetjmp with the val value.
+sigsetjmp has the potential ability to save the current signal mask, so it can be later restored by siglongjmp.
 
 Q2:
-Here are answers to theoreical questions
-if there were such questions in the exercise.
+A useful example that comes to mind is in the field of embedded programming. Say we have a device with a temperature sensor and a moisture sensor, and we want to do something once they reach a certain value i.e turning on an LED. We can set a thread for each sensor that share some memory with the LED thread, the LED thread checks on the memory to see if the sensors have reached the proper variables.
+
+Q3:
+User level processes are easier to maintain, have no need for system calls resulting in faster switching (and generally have low overhead and quick context switching). They are also portable, meaning they are easily integrated into different systems.
+A disadvantage is that if one tab is blocked, then chrome in its entirety gets blocked.
+
+Q4:
+From the very first step, an internal interrupt is sent from the keyboard, to be handled by the cpu.
+The cpu will send a signal to the shell’s thread that is waiting for a keyboard input.
+After kill [pid] is typed into the shell, (I would assume) a signal is sent to a thread in charge of managing command execution.
+That thread would then send a kill system call, the OS will perform a trap and a context switch and exterminate the process with the given pid.
+
+Q5:
+Real time is the real life time (touch grass) (literal wall time), whilst virtual time is the amount of CPU computed time that the process has consumed.
+An example of real time usage is a schedule alarm, and an example for virtual time usage is a timed event in a video game (now I should touch grass).
+

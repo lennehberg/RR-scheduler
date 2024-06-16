@@ -9,10 +9,7 @@
 
 
 
-#include "Schedueler.h"
-#include "thread_utils.h"
-#include <iostream>
-#include <cerrno>
+typedef void (*thread_entry_point)(void);
 
 /* external interface */
 /**

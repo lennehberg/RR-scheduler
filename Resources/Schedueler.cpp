@@ -4,8 +4,6 @@
 
 #include "Schedueler.h"
 
-#include <thread>
-#include <utility>
 
 /**
  * Schedueler class, in charge of managing thread timings and the ready queue

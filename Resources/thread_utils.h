@@ -59,7 +59,7 @@ typedef struct thread_t{
 		sp_ = 0;
 		pc_ = 0;
 		asleep_for_ = -1;
-		total_quantums = 0;
+		total_quantums = 1;
 	}
 
 	/**

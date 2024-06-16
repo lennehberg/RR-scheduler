@@ -6,7 +6,7 @@ LIBSRC=arch_utils.cpp Schedueler.cpp uthreads.cpp
 LIBOBJ:=$(LIBSRC:.cpp=.o)
 
 
-CFLAGS= -Wall -std=c++11 -g $(INCS)
+CFLAGS= -Wall -std=c++11
 CXXFLAGS = -Wall -std=c++11 -g $(INCS)
 
 LIBUTHREADS = libuthreads.a

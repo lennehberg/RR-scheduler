@@ -2,6 +2,11 @@
 // Created by lennehberg on 6/13/24.
 //
 #include "uthreads.h"
+#include "Schedueler.h"
+#include "arch_utils.h"
+#include "thread_utils.h"
+#include <iostream>
+#include <cerrno>
 
 #include <cstring>
 
@@ -18,6 +23,9 @@ itimerval main_timer = {0};
 sigset_t sigset_;
 
 
+
+
+
 void error_handler(std::string msg)
 {
     std::cerr << msg << std::endl;
@@ -32,9 +40,11 @@ void timer_handler(int signum)
     ++total_quantums;
     if (uthread_get_tid() != 0)
     {
+
         // fetch the current running thread from the schedueler and
         // reset its timer, set it's state to blocked (purely for semantic purposes)
         thread_t *cur = sched_.get_cur_thread();
+        // cur->total_quantums++;
         cur->time_slice_ = v_timer_;
         cur->state_ = BLOCKED;
 
@@ -48,6 +58,7 @@ void timer_handler(int signum)
     {
         thread_t *cur = sched_.get_cur_thread();
         cur->time_slice_ = main_timer;
+        // cur->total_quantums++;
         if (sigsetjmp(cur->env_, 1) != 0)
         {
             return;
@@ -67,6 +78,11 @@ void setup_v_timer()
     v_timer_.it_value.tv_usec = quantum;
     v_timer_.it_interval.tv_sec = 0;
     v_timer_.it_interval.tv_usec = quantum;
+
+    // TODO try to set virtual timer here
+    // so that time starts ticking on init,
+    // handler shouldn't switch from main until a new thread is spawned
+    setitimer(ITIMER_VIRTUAL, &v_timer_, nullptr);
 
     main_timer.it_interval.tv_usec = quantum;
     main_timer.it_value.tv_usec = quantum;
@@ -157,7 +173,7 @@ int uthread_spawn(thread_entry_point entry_point)
         min_tid = get_min_tid();
         if (min_tid > -1)
         {
-            ret = 0;
+            ret = min_tid;
             // init a new thread with that tid
             used_tids_[min_tid] = 1;
             sched_.init_thread(min_tid, v_timer_, entry_point);
@@ -168,10 +184,10 @@ int uthread_spawn(thread_entry_point entry_point)
         error_handler("thread library error: Thread entry point cannot be NULL!");
     }
     UNBLOCK_V_TIMER()
-    if (ret == 0 && uthread_get_tid() == 0)
-    {
-        sched_.schedule();
-    }
+//    if (ret == 0 && uthread_get_tid() == 0)
+//    {
+//        sched_.schedule();
+//    }
     return ret;
 }
 
@@ -190,6 +206,7 @@ int uthread_terminate(int tid)
     else if (used_tids_[tid])
     {
         used_tids_[tid] = 0;
+        total_quantums++;
         sched_.remove_thread(tid);
         ret = 0;
     }
@@ -312,6 +329,7 @@ int uthread_get_quantums(int tid)
     {
         error_handler("thread library error: Can't get quantums as no thread exists with that ID");
     }
-
+    itimerval debug_timer;
+    getitimer(ITIMER_VIRTUAL, &debug_timer);
     return sched_.get_total_quantums(tid);
 }

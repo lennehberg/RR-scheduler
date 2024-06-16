@@ -5,6 +5,9 @@
 
 #include <cstring>
 
+#define BLOCK_V_TIMER() sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+#define UNBLOCK_V_TIMER() sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+
 /// GLOBALS ///
 int used_tids_[MAX_THREAD_NUM] = {0};
 int quantum = 0;
@@ -95,7 +98,7 @@ int uthread_init(int quantum_usecs)
     int ret = -1;
     // set signal mask to block SIGVTALRM
     setup_sigmask();
-    sigprocmask(SIG_BLOCK, &sigset_, nullptr);
+    BLOCK_V_TIMER()
 
     // check if quantum is positive
     if (quantum_usecs > 0)
@@ -108,12 +111,12 @@ int uthread_init(int quantum_usecs)
         setup_v_timer();
         // init main thread
         sched_.init_thread(0, main_timer, nullptr);
-        sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+        UNBLOCK_V_TIMER()
         if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
         {
             return 0;
         }
-        sigprocmask(SIG_BLOCK, &sigset_, nullptr);
+        BLOCK_V_TIMER();
         used_tids_[0] = 1;
         total_quantums = 1;
         ret = 0;
@@ -122,7 +125,7 @@ int uthread_init(int quantum_usecs)
     {
         error_handler("thread library error: quantum should be a positive integer! ");
     }
-    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    UNBLOCK_V_TIMER()
     return ret;
 }
 
@@ -145,9 +148,10 @@ tid_t get_min_tid()
 
 int uthread_spawn(thread_entry_point entry_point)
 {
-    tid_t min_tid;
+  	BLOCK_V_TIMER()
+  	tid_t min_tid;
     int ret = -1;
-    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+
     if (entry_point)
     {
         min_tid = get_min_tid();
@@ -163,7 +167,7 @@ int uthread_spawn(thread_entry_point entry_point)
     {
         error_handler("thread library error: Thread entry point cannot be NULL!");
     }
-    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    UNBLOCK_V_TIMER()
     if (ret == 0 && uthread_get_tid() == 0)
     {
         sched_.schedule();
@@ -174,7 +178,7 @@ int uthread_spawn(thread_entry_point entry_point)
 
 int uthread_terminate(int tid)
 {
-    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    BLOCK_V_TIMER()
     int ret = -1;
     // if tid == 0, then terminate the whole program and exit(0)
     if (tid == 0)
@@ -198,14 +202,14 @@ int uthread_terminate(int tid)
         error_handler(erro_msg);
     }
 
-    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    UNBLOCK_V_TIMER()
     return ret;
 }
 
 
 int uthread_block(int tid)
 {
-    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    BLOCK_V_TIMER()
     // if id is 0, raise en error
     int ret = -1;
     if (tid == 0)
@@ -218,7 +222,8 @@ int uthread_block(int tid)
     {
         // if the thread is blocking itself (the currently runnning
         // theead, save its state (if the thread is not currently running,
-        // then it's state was save previously, either here or in the timer handler)
+        // then it's state was saved previously, either here or in the timer
+		// handler)
         if (tid == sched_.get_cur_thread()->tid_)
         {
             if (sigsetjmp(sched_.get_cur_thread()->env_, 1) != 0)
@@ -233,14 +238,14 @@ int uthread_block(int tid)
     {
         error_handler("thread library error: Thread id does not exist!");
     }
-    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    UNBLOCK_V_TIMER()
 
     return ret;
 }
 
 int uthread_resume(int tid)
 {
-    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    BLOCK_V_TIMER()
     int ret = -1;
     // if id not in use, raise error
     if (tid == 0 || !used_tids_[tid])
@@ -256,14 +261,14 @@ int uthread_resume(int tid)
         }
         ret = 0;
     }
-    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    UNBLOCK_V_TIMER()
     return ret;
 
 }
 
 int uthread_sleep(int num_quantums)
 {
-    sigprocmask(SIG_SETMASK, &sigset_, nullptr);
+    BLOCK_V_TIMER()
     int ret = -1;
     if (uthread_get_tid() == 0)
     {
@@ -286,7 +291,7 @@ int uthread_sleep(int num_quantums)
     {
         error_handler("thread library error: number of quantums must be a positive integer!");
     }
-    sigprocmask(SIG_UNBLOCK, &sigset_, nullptr);
+    UNBLOCK_V_TIMER()
     return ret;
 }
 

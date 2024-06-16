@@ -22,4 +22,5 @@ address_t translate_address(address_t addr)
     : "0" (addr));
     return ret;
 }
+
 #endif

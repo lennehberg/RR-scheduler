@@ -2,10 +2,10 @@ CC=g++
 CXX=g++
 RANLIB=ranlib
 
-LIBSRC=uthreads.cpp Schedueler.cpp arch_utils.cpp
-LIBOBJ=$(LIBSRC:.cpp=.o)
+LIBSRC=arch_utils.cpp Schedueler.cpp uthreads.cpp
+LIBOBJ:=$(LIBSRC:.cpp=.o)
 
-INCS=-I
+
 CFLAGS= -Wall -std=c++11 -g $(INCS)
 CXXFLAGS = -Wall -std=c++11 -g $(INCS)
 
@@ -13,24 +13,25 @@ LIBUTHREADS = libuthreads.a
 TARGETS = $(LIBUTHREADS)
 
 TAR=tar
-TARFLAHS=-cvf
+TARFLAGS=-cvf
 TARNAME=ex2.tar
-TARSRCS=$(LIBSRC) Makefile README
+TARSRCS=$(LIBSRC) Schedueler.h thread_utils.h arch_utils.h Makefile README
 
 all: $(TARGETS)
 
 $(TARGETS): $(LIBOBJ) 
-	$(AR) $(ARFLAGS) $@ $^
+	ar rcs $@ $^
 	$(RANLIB) $@
 
-#uthread.o: uthread.cpp uthread.h Schedueler.cpp Schedueler.h
-#	$(CC) $(CFLAGS) -o uthread.o 
+%.o: %.cpp
+	$(CC) $(CFLAGS) -c -o $@ $<	
 
 clean:
-	$(RM) $(TARGETS) $(LIBUTHREADS) $(OBJ) $(LIBOBJ) *~ *core
+	$(RM) $(OBJ) $(LIBOBJ) *~ *core
 
 depend:
 	makedepend -- $(CFLAGS) -- $(SRC) $(LIBSRC)
 
 tar:
 	$(TAR) $(TARFLAGS) $(TARNAME) $(TARSRCS)
+
